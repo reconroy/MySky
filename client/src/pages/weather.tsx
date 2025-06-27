@@ -60,6 +60,11 @@ export default function WeatherPage() {
     refetch();
   };
 
+  const handleLocationReset = () => {
+    setCustomLocation(null);
+    refetch();
+  };
+
   if (locationError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-6">
@@ -114,7 +119,13 @@ export default function WeatherPage() {
           className="flex justify-between items-center p-6"
         >
           <div className="flex items-center space-x-3">
-            <i className="fas fa-location-dot text-white text-xl" />
+            <button
+              onClick={handleLocationReset}
+              className="text-white hover:text-white/80 transition-colors duration-200"
+              title="Return to current location"
+            >
+              <i className="fas fa-location-dot text-xl" />
+            </button>
             <div>
               <h1 className="text-white font-semibold text-lg">
                 {currentWeather?.city || "Loading..."}
