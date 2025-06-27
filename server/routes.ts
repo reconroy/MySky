@@ -76,20 +76,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const weatherData = await weatherResponse.json();
       
-      // Get location name using reverse geocoding
+      // Get location name and country using reverse geocoding
       let locationName = cityName;
+      let countryName = "";
       try {
-        const geocodeUrl = `${GEOCODING_BASE_URL}/search?latitude=${latitude}&longitude=${longitude}&count=1&language=en&format=json`;
-        const geocodeResponse = await fetch(geocodeUrl);
-        if (geocodeResponse.ok) {
-          const geocodeData = await geocodeResponse.json();
-          if (geocodeData.results && geocodeData.results.length > 0) {
-            const result = geocodeData.results[0];
-            locationName = result.name || result.admin1 || result.country || cityName;
+        // Try reverse geocoding with a different approach
+        const reverseGeocodeUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
+        const reverseResponse = await fetch(reverseGeocodeUrl);
+        if (reverseResponse.ok) {
+          const reverseData = await reverseResponse.json();
+          if (reverseData.city || reverseData.locality) {
+            locationName = reverseData.city || reverseData.locality || cityName;
+            countryName = reverseData.countryName || reverseData.country || "";
           }
         }
       } catch (geocodeError) {
-        console.log("Geocoding failed, using provided city name");
+        // Fallback to Open-Meteo geocoding
+        try {
+          const geocodeUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`;
+          const geocodeResponse = await fetch(geocodeUrl);
+          if (geocodeResponse.ok) {
+            const geocodeData = await geocodeResponse.json();
+            if (geocodeData.results && geocodeData.results.length > 0) {
+              const result = geocodeData.results[0];
+              locationName = result.name || result.admin1 || cityName;
+              countryName = result.country || "";
+            }
+          }
+        } catch (fallbackError) {
+          console.log("All geocoding attempts failed, using provided city name");
+        }
       }
       
       // Map weather codes to conditions
@@ -106,7 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Transform API response to our schema
       const transformedWeatherData = {
         city: locationName,
-        country: "Unknown", // Open-Meteo doesn't provide country directly
+        country: countryName || "",
         latitude,
         longitude,
         temperature: weatherData.current.temperature_2m,

@@ -21,9 +21,9 @@ export default function WeatherDisplay({ weather }: WeatherDisplayProps) {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-        className="mb-6 pulse-glow"
+        className="mb-6"
       >
-        <i className={`${iconClass} text-9xl text-white weather-icon-large`} />
+        <i className={`${iconClass} text-9xl text-white`} />
       </motion.div>
       
       {/* Temperature Display */}

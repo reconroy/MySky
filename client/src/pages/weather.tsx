@@ -120,7 +120,9 @@ export default function WeatherPage() {
                 {currentWeather?.city || "Loading..."}
               </h1>
               <p className="text-white/70 text-sm">
-                {currentWeather?.country || "Getting location..."}
+                {currentWeather?.country && currentWeather.country.trim() 
+                  ? currentWeather.country 
+                  : "Current Location"}
               </p>
             </div>
           </div>
