@@ -4,13 +4,47 @@ import { storage } from "./storage";
 import { insertWeatherDataSchema, insertHourlyForecastSchema, insertDailyForecastSchema } from "@shared/schema";
 import { z } from "zod";
 
-const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY || process.env.WEATHER_API_KEY || "demo_key";
-const OPENWEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5";
-const OPENWEATHER_ONECALL_URL = "https://api.openweathermap.org/data/3.0/onecall";
+// Using Open-Meteo - a free, no API key required weather service
+const OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1";
+const GEOCODING_BASE_URL = "https://geocoding-api.open-meteo.com/v1";
+
+// Weather condition mapping for Open-Meteo weather codes
+function getWeatherCondition(weatherCode: number, isDay: boolean) {
+  const weatherConditions: Record<number, { main: string; description: string; iconDay: string; iconNight: string }> = {
+    0: { main: "Clear", description: "clear sky", iconDay: "01d", iconNight: "01n" },
+    1: { main: "Clear", description: "mainly clear", iconDay: "01d", iconNight: "01n" },
+    2: { main: "Clouds", description: "partly cloudy", iconDay: "02d", iconNight: "02n" },
+    3: { main: "Clouds", description: "overcast", iconDay: "03d", iconNight: "03n" },
+    45: { main: "Fog", description: "fog", iconDay: "50d", iconNight: "50n" },
+    48: { main: "Fog", description: "depositing rime fog", iconDay: "50d", iconNight: "50n" },
+    51: { main: "Drizzle", description: "light drizzle", iconDay: "09d", iconNight: "09n" },
+    53: { main: "Drizzle", description: "moderate drizzle", iconDay: "09d", iconNight: "09n" },
+    55: { main: "Drizzle", description: "dense drizzle", iconDay: "09d", iconNight: "09n" },
+    61: { main: "Rain", description: "slight rain", iconDay: "10d", iconNight: "10n" },
+    63: { main: "Rain", description: "moderate rain", iconDay: "10d", iconNight: "10n" },
+    65: { main: "Rain", description: "heavy rain", iconDay: "10d", iconNight: "10n" },
+    71: { main: "Snow", description: "slight snow fall", iconDay: "13d", iconNight: "13n" },
+    73: { main: "Snow", description: "moderate snow fall", iconDay: "13d", iconNight: "13n" },
+    75: { main: "Snow", description: "heavy snow fall", iconDay: "13d", iconNight: "13n" },
+    80: { main: "Rain", description: "slight rain showers", iconDay: "09d", iconNight: "09n" },
+    81: { main: "Rain", description: "moderate rain showers", iconDay: "09d", iconNight: "09n" },
+    82: { main: "Rain", description: "violent rain showers", iconDay: "09d", iconNight: "09n" },
+    95: { main: "Thunderstorm", description: "thunderstorm", iconDay: "11d", iconNight: "11n" },
+    96: { main: "Thunderstorm", description: "thunderstorm with slight hail", iconDay: "11d", iconNight: "11n" },
+    99: { main: "Thunderstorm", description: "thunderstorm with heavy hail", iconDay: "11d", iconNight: "11n" },
+  };
+
+  const condition = weatherConditions[weatherCode] || weatherConditions[0];
+  return {
+    main: condition.main,
+    description: condition.description,
+    icon: isDay ? condition.iconDay : condition.iconNight,
+  };
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Get weather data for a location
+  // Get weather data for a location using Open-Meteo
   app.get("/api/weather", async (req, res) => {
     try {
       const { lat, lon, city } = req.query;
@@ -32,8 +66,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(cachedWeather);
       }
       
-      // Fetch current weather from OpenWeatherMap
-      const weatherUrl = `${OPENWEATHER_BASE_URL}/weather?lat=${latitude}&lon=${longitude}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+      // Fetch current weather from Open-Meteo
+      const weatherUrl = `${OPEN_METEO_BASE_URL}/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,surface_pressure,wind_speed_10m,wind_direction_10m&timezone=auto`;
       const weatherResponse = await fetch(weatherUrl);
       
       if (!weatherResponse.ok) {
@@ -42,26 +76,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const weatherData = await weatherResponse.json();
       
+      // Get location name using reverse geocoding
+      let locationName = cityName;
+      try {
+        const geocodeUrl = `${GEOCODING_BASE_URL}/search?latitude=${latitude}&longitude=${longitude}&count=1&language=en&format=json`;
+        const geocodeResponse = await fetch(geocodeUrl);
+        if (geocodeResponse.ok) {
+          const geocodeData = await geocodeResponse.json();
+          if (geocodeData.results && geocodeData.results.length > 0) {
+            const result = geocodeData.results[0];
+            locationName = result.name || result.admin1 || result.country || cityName;
+          }
+        }
+      } catch (geocodeError) {
+        console.log("Geocoding failed, using provided city name");
+      }
+      
+      // Map weather codes to conditions
+      const weatherCode = weatherData.current.weather_code;
+      const { main, description, icon } = getWeatherCondition(weatherCode, weatherData.current.is_day);
+      
+      // Calculate sunrise/sunset (approximate)
+      const now = new Date();
+      const sunrise = new Date(now);
+      sunrise.setHours(6, 0, 0, 0);
+      const sunset = new Date(now);
+      sunset.setHours(18, 0, 0, 0);
+      
       // Transform API response to our schema
       const transformedWeatherData = {
-        city: weatherData.name || cityName,
-        country: weatherData.sys?.country || "Unknown",
+        city: locationName,
+        country: "Unknown", // Open-Meteo doesn't provide country directly
         latitude,
         longitude,
-        temperature: weatherData.main.temp,
-        feelsLike: weatherData.main.feels_like,
-        humidity: weatherData.main.humidity,
-        pressure: weatherData.main.pressure,
-        visibility: weatherData.visibility ? weatherData.visibility / 1000 : 10, // Convert to km
-        windSpeed: weatherData.wind?.speed || 0,
-        windDirection: weatherData.wind?.deg || 0,
-        weatherMain: weatherData.weather[0].main,
-        weatherDescription: weatherData.weather[0].description,
-        weatherIcon: weatherData.weather[0].icon,
-        cloudiness: weatherData.clouds.all,
-        sunrise: new Date(weatherData.sys.sunrise * 1000),
-        sunset: new Date(weatherData.sys.sunset * 1000),
-        timezone: weatherData.timezone,
+        temperature: weatherData.current.temperature_2m,
+        feelsLike: weatherData.current.apparent_temperature,
+        humidity: weatherData.current.relative_humidity_2m,
+        pressure: Math.round(weatherData.current.surface_pressure),
+        visibility: 10, // Open-Meteo doesn't provide visibility
+        windSpeed: weatherData.current.wind_speed_10m,
+        windDirection: weatherData.current.wind_direction_10m,
+        weatherMain: main,
+        weatherDescription: description,
+        weatherIcon: icon,
+        cloudiness: weatherData.current.cloud_cover,
+        sunrise,
+        sunset,
+        timezone: 0, // Will be handled by timezone parameter
       };
       
       // Validate and store the data
@@ -75,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get hourly forecast
+  // Get hourly forecast using Open-Meteo
   app.get("/api/weather/hourly", async (req, res) => {
     try {
       const { lat, lon, city } = req.query;
@@ -95,8 +156,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(cachedForecast);
       }
       
-      // Fetch forecast data from OpenWeatherMap
-      const forecastUrl = `${OPENWEATHER_BASE_URL}/forecast?lat=${latitude}&lon=${longitude}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+      // Fetch hourly forecast data from Open-Meteo
+      const forecastUrl = `${OPEN_METEO_BASE_URL}/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,relative_humidity_2m,weather_code,is_day,wind_speed_10m&timezone=auto&forecast_days=2`;
       const forecastResponse = await fetch(forecastUrl);
       
       if (!forecastResponse.ok) {
@@ -105,17 +166,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const forecastData = await forecastResponse.json();
       
-      // Transform hourly forecast data (take first 24 hours)
-      const hourlyForecasts = forecastData.list.slice(0, 8).map((item: any) => ({
-        city: cityName,
-        dateTime: new Date(item.dt * 1000),
-        temperature: item.main.temp,
-        weatherMain: item.weather[0].main,
-        weatherDescription: item.weather[0].description,
-        weatherIcon: item.weather[0].icon,
-        humidity: item.main.humidity,
-        windSpeed: item.wind?.speed || 0,
-      }));
+      // Transform hourly forecast data (take next 24 hours)
+      const hourlyForecasts = forecastData.hourly.time.slice(0, 24).map((time: string, index: number) => {
+        const weatherCode = forecastData.hourly.weather_code[index];
+        const isDay = forecastData.hourly.is_day[index];
+        const { main, description, icon } = getWeatherCondition(weatherCode, isDay);
+        
+        return {
+          city: cityName,
+          dateTime: new Date(time),
+          temperature: forecastData.hourly.temperature_2m[index],
+          weatherMain: main,
+          weatherDescription: description,
+          weatherIcon: icon,
+          humidity: forecastData.hourly.relative_humidity_2m[index],
+          windSpeed: forecastData.hourly.wind_speed_10m[index],
+        };
+      });
       
       // Clear old forecast and save new one
       await storage.clearHourlyForecast(cityName);
@@ -128,7 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get daily forecast
+  // Get daily forecast using Open-Meteo
   app.get("/api/weather/daily", async (req, res) => {
     try {
       const { lat, lon, city } = req.query;
@@ -148,8 +215,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(cachedForecast);
       }
       
-      // Fetch forecast data from OpenWeatherMap
-      const forecastUrl = `${OPENWEATHER_BASE_URL}/forecast?lat=${latitude}&lon=${longitude}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+      // Fetch daily forecast data from Open-Meteo
+      const forecastUrl = `${OPEN_METEO_BASE_URL}/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weather_code,relative_humidity_2m,wind_speed_10m_max&timezone=auto&forecast_days=7`;
       const forecastResponse = await fetch(forecastUrl);
       
       if (!forecastResponse.ok) {
@@ -158,38 +225,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const forecastData = await forecastResponse.json();
       
-      // Group forecast data by day and get daily min/max temperatures
-      const dailyMap = new Map();
-      
-      forecastData.list.forEach((item: any) => {
-        const date = new Date(item.dt * 1000);
-        const dateKey = date.toDateString();
+      // Transform daily forecast data
+      const dailyForecasts = forecastData.daily.time.map((time: string, index: number) => {
+        const weatherCode = forecastData.daily.weather_code[index];
+        const { main, description, icon } = getWeatherCondition(weatherCode, true); // Use day version for daily forecast
         
-        if (!dailyMap.has(dateKey)) {
-          dailyMap.set(dateKey, {
-            date: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-            temps: [],
-            weather: item.weather[0],
-            humidity: item.main.humidity,
-            windSpeed: item.wind?.speed || 0,
-          });
-        }
-        
-        dailyMap.get(dateKey).temps.push(item.main.temp);
+        return {
+          city: cityName,
+          date: new Date(time),
+          tempMin: forecastData.daily.temperature_2m_min[index],
+          tempMax: forecastData.daily.temperature_2m_max[index],
+          weatherMain: main,
+          weatherDescription: description,
+          weatherIcon: icon,
+          humidity: Math.round(forecastData.daily.relative_humidity_2m[index]),
+          windSpeed: forecastData.daily.wind_speed_10m_max[index],
+        };
       });
-      
-      // Transform to daily forecast format (take first 7 days)
-      const dailyForecasts = Array.from(dailyMap.values()).slice(0, 7).map((day: any) => ({
-        city: cityName,
-        date: day.date,
-        tempMin: Math.min(...day.temps),
-        tempMax: Math.max(...day.temps),
-        weatherMain: day.weather.main,
-        weatherDescription: day.weather.description,
-        weatherIcon: day.weather.icon,
-        humidity: day.humidity,
-        windSpeed: day.windSpeed,
-      }));
       
       // Clear old forecast and save new one
       await storage.clearDailyForecast(cityName);

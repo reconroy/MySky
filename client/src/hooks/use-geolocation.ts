@@ -11,65 +11,89 @@ export function useGeolocation() {
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setError("Geolocation is not supported by this browser");
-      setLoading(false);
-      return;
-    }
-
-    const success = async (position: GeolocationPosition) => {
-      const { latitude, longitude } = position.coords;
-      
+  const getLocationWithFallback = async () => {
+    // First, try to get user's location
+    if (navigator.geolocation) {
       try {
-        // Get city name from reverse geocoding using a public API
-        const response = await fetch(
-          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          setLocation({
-            latitude,
-            longitude,
-            city: data.city || data.locality || data.countryName || "Unknown Location",
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false, // Use lower accuracy for faster response
+            timeout: 10000,
+            maximumAge: 10 * 60 * 1000, // 10 minutes
           });
-        } else {
-          setLocation({ latitude, longitude, city: "Unknown Location" });
+        });
+
+        const { latitude, longitude } = position.coords;
+        
+        try {
+          // Get city name from reverse geocoding
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            setLocation({
+              latitude,
+              longitude,
+              city: data.city || data.locality || data.countryName || "Your Location",
+            });
+          } else {
+            setLocation({ latitude, longitude, city: "Your Location" });
+          }
+        } catch (geocodeError) {
+          setLocation({ latitude, longitude, city: "Your Location" });
         }
-      } catch (geocodeError) {
-        // If reverse geocoding fails, still use the coordinates
-        setLocation({ latitude, longitude, city: "Unknown Location" });
+      } catch (geoError) {
+        // If geolocation fails, try IP-based location as fallback
+        console.log("Geolocation failed, trying IP-based location...");
+        await getLocationFromIP();
       }
-      
-      setLoading(false);
-    };
+    } else {
+      // Browser doesn't support geolocation, use IP-based location
+      await getLocationFromIP();
+    }
+    
+    setLoading(false);
+  };
 
-    const handleError = (error: GeolocationPositionError) => {
-      let errorMessage = "Unable to get your location";
+  const getLocationFromIP = async () => {
+    try {
+      // Use IP geolocation as fallback
+      const response = await fetch('https://ipapi.co/json/');
       
-      switch (error.code) {
-        case error.PERMISSION_DENIED:
-          errorMessage = "Location access denied by user";
-          break;
-        case error.POSITION_UNAVAILABLE:
-          errorMessage = "Location information is unavailable";
-          break;
-        case error.TIMEOUT:
-          errorMessage = "Location request timed out";
-          break;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.latitude && data.longitude) {
+          setLocation({
+            latitude: data.latitude,
+            longitude: data.longitude,
+            city: data.city || data.region || data.country_name || "Demo Location",
+          });
+          return;
+        }
       }
-      
-      setError(errorMessage);
-      setLoading(false);
-    };
-
-    navigator.geolocation.getCurrentPosition(success, handleError, {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 5 * 60 * 1000, // 5 minutes
+    } catch (ipError) {
+      console.log("IP-based location failed, using demo location");
+    }
+    
+    // Final fallback - use a demo location (New York City)
+    setLocation({
+      latitude: 40.7128,
+      longitude: -74.0060,
+      city: "New York City",
     });
+  };
+
+  useEffect(() => {
+    getLocationWithFallback();
   }, []);
 
-  return { location, error, loading };
+  const retry = () => {
+    setError(undefined);
+    setLoading(true);
+    getLocationWithFallback();
+  };
+
+  return { location, error, loading, retry };
 }

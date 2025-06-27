@@ -75,7 +75,7 @@ This is a modern weather application built with React and Express.js that provid
 - Drizzle ORM for type-safe database operations
 - TanStack Query for API state management
 - Zod for runtime type validation
-- OpenWeatherMap API for weather data
+- Open-Meteo API for weather data (free, no API key required)
 
 ### Development Tools
 - TypeScript for type safety
