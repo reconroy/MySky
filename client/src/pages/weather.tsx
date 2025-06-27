@@ -9,14 +9,25 @@ import WeatherCards from "@/components/weather/weather-cards";
 import HourlyForecast from "@/components/weather/hourly-forecast";
 import WeeklyForecast from "@/components/weather/weekly-forecast";
 import LoadingOverlay from "@/components/weather/loading-overlay";
-import { RefreshCw, Settings } from "lucide-react";
+import LocationSelector from "@/components/weather/location-selector";
+import WeatherParticles from "@/components/weather/weather-particles";
+import { RefreshCw, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function WeatherPage() {
   const [weatherTheme, setWeatherTheme] = useState("sunny");
-  const { location, error: locationError, loading: locationLoading } = useGeolocation();
+  const [isLocationSelectorOpen, setIsLocationSelectorOpen] = useState(false);
+  const [customLocation, setCustomLocation] = useState<{ lat: number; lon: number; city: string } | null>(null);
   
+  const { location, error: locationError, loading: locationLoading } = useGeolocation();
 
+  // Use custom location if selected, otherwise use detected location
+  const activeLocation = customLocation || location;
+  
+  // Extract coordinates properly from either format
+  const lat = customLocation?.lat || location?.latitude;
+  const lon = customLocation?.lon || location?.longitude;
+  const city = customLocation?.city || location?.city;
   
   const {
     currentWeather,
@@ -25,7 +36,7 @@ export default function WeatherPage() {
     isLoading,
     error,
     refetch,
-  } = useWeather(location?.latitude, location?.longitude, location?.city);
+  } = useWeather(lat, lon, city);
 
   // Update theme based on weather conditions
   useEffect(() => {
@@ -41,6 +52,11 @@ export default function WeatherPage() {
   const isInitialLoading = locationLoading || (isLoading && !currentWeather);
 
   const handleRefresh = () => {
+    refetch();
+  };
+
+  const handleLocationSelect = (lat: number, lon: number, city: string) => {
+    setCustomLocation({ lat, lon, city });
     refetch();
   };
 
@@ -88,21 +104,7 @@ export default function WeatherPage() {
   return (
     <div className="relative z-10 min-h-screen">
       <ThreeBackground weatherTheme={weatherTheme} />
-      
-      {/* Weather Particles */}
-      <div className="fixed inset-0 pointer-events-none">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className={`weather-particle w-${i % 3 + 1} h-${i % 3 + 1} bg-yellow-300 opacity-60`}
-            style={{
-              top: `${20 + (i * 15)}%`,
-              left: `${15 + (i * 20)}%`,
-              animationDelay: `${i * -1}s`,
-            }}
-          />
-        ))}
-      </div>
+      <WeatherParticles weatherTheme={weatherTheme} />
 
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header */}
@@ -138,27 +140,30 @@ export default function WeatherPage() {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => setIsLocationSelectorOpen(true)}
               className="glassmorphism rounded-full p-3 hover:bg-white/20 transition-all duration-300 text-white border-0"
             >
-              <Settings className="w-5 h-5" />
+              <MapPin className="w-5 h-5" />
             </Button>
           </div>
         </motion.header>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col items-center justify-center px-6 pb-6">
-          {currentWeather && (
-            <>
-              <WeatherDisplay weather={currentWeather} />
-              <WeatherCards weather={currentWeather} />
-              {hourlyForecast && hourlyForecast.length > 0 && (
-                <HourlyForecast forecast={hourlyForecast} />
-              )}
-              {dailyForecast && dailyForecast.length > 0 && (
-                <WeeklyForecast forecast={dailyForecast} />
-              )}
-            </>
-          )}
+        <main className="flex-1 overflow-y-auto scrollbar-hide">
+          <div className="flex flex-col items-center justify-start min-h-full px-6 py-6">
+            {currentWeather && (
+              <>
+                <WeatherDisplay weather={currentWeather} />
+                <WeatherCards weather={currentWeather} />
+                {hourlyForecast && hourlyForecast.length > 0 && (
+                  <HourlyForecast forecast={hourlyForecast} />
+                )}
+                {dailyForecast && dailyForecast.length > 0 && (
+                  <WeeklyForecast forecast={dailyForecast} />
+                )}
+              </>
+            )}
+          </div>
         </main>
 
         {/* Footer */}
@@ -175,12 +180,18 @@ export default function WeatherPage() {
             }
           </p>
           <p className="text-white/40 text-xs mt-1">
-            Weather data provided by OpenWeatherMap
+            Weather data provided by Open-Meteo
           </p>
         </motion.footer>
       </div>
 
       <LoadingOverlay isVisible={isInitialLoading} />
+      
+      <LocationSelector
+        isOpen={isLocationSelectorOpen}
+        onClose={() => setIsLocationSelectorOpen(false)}
+        onLocationSelect={handleLocationSelect}
+      />
     </div>
   );
 }
