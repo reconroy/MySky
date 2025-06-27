@@ -7,18 +7,24 @@ interface GeolocationState {
 }
 
 export function useGeolocation() {
-  const [location, setLocation] = useState<GeolocationState>();
+  const [location, setLocation] = useState<GeolocationState>({
+    latitude: 40.7128,
+    longitude: -74.0060,
+    city: "New York City"
+  });
   const [error, setError] = useState<string>();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const getLocationWithFallback = async () => {
+    setLoading(true);
+    
     // First, try to get user's location
     if (navigator.geolocation) {
       try {
         const position = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: false, // Use lower accuracy for faster response
-            timeout: 10000,
+            timeout: 5000, // Shorter timeout
             maximumAge: 10 * 60 * 1000, // 10 minutes
           });
         });

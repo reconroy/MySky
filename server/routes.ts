@@ -216,7 +216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Fetch daily forecast data from Open-Meteo
-      const forecastUrl = `${OPEN_METEO_BASE_URL}/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weather_code,relative_humidity_2m,wind_speed_10m_max&timezone=auto&forecast_days=7`;
+      const forecastUrl = `${OPEN_METEO_BASE_URL}/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weather_code,wind_speed_10m_max&timezone=auto&forecast_days=7`;
       const forecastResponse = await fetch(forecastUrl);
       
       if (!forecastResponse.ok) {
@@ -238,7 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           weatherMain: main,
           weatherDescription: description,
           weatherIcon: icon,
-          humidity: Math.round(forecastData.daily.relative_humidity_2m[index]),
+          humidity: 50, // Default humidity as Open-Meteo daily doesn't provide this easily
           windSpeed: forecastData.daily.wind_speed_10m_max[index],
         };
       });

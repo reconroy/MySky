@@ -16,6 +16,8 @@ export default function WeatherPage() {
   const [weatherTheme, setWeatherTheme] = useState("sunny");
   const { location, error: locationError, loading: locationLoading } = useGeolocation();
   
+
+  
   const {
     currentWeather,
     hourlyForecast,
