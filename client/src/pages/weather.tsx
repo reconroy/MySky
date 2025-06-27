@@ -114,9 +114,7 @@ export default function WeatherPage() {
           className="flex justify-between items-center p-6"
         >
           <div className="flex items-center space-x-3">
-            <div className="glassmorphism rounded-full p-2">
-              <i className="fas fa-location-dot text-white text-lg" />
-            </div>
+            <i className="fas fa-location-dot text-white text-xl" />
             <div>
               <h1 className="text-white font-semibold text-lg">
                 {currentWeather?.city || "Loading..."}
@@ -171,17 +169,22 @@ export default function WeatherPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="text-center p-6"
+          className="text-center p-4 mt-auto"
         >
-          <p className="text-white/60 text-sm">
-            Last updated: {currentWeather?.lastUpdated ? 
-              new Date(currentWeather.lastUpdated).toLocaleTimeString() : 
-              "Loading..."
-            }
-          </p>
-          <p className="text-white/40 text-xs mt-1">
-            Weather data provided by Open-Meteo
-          </p>
+          <div className="space-y-1">
+            <p className="text-white/50 text-xs">
+              Weather data provided by Open-Meteo
+            </p>
+            <p className="text-white/40 text-xs">
+              Version 1.0.0 • Built with React & TypeScript
+            </p>
+            <p className="text-white/30 text-xs">
+              Last updated: {currentWeather?.lastUpdated ? 
+                new Date(currentWeather.lastUpdated).toLocaleTimeString() : 
+                "Loading..."
+              }
+            </p>
+          </div>
         </motion.footer>
       </div>
 
