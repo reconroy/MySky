@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useWeather } from "@/hooks/use-weather";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { getWeatherTheme } from "@/lib/weather-themes";
-import ThreeBackground from "@/components/weather/three-background";
+import WeatherVideoBackground from "@/components/weather/weather-video-background";
 import WeatherDisplay from "@/components/weather/weather-display";
 import WeatherCards from "@/components/weather/weather-cards";
 import HourlyForecast from "@/components/weather/hourly-forecast";
@@ -103,7 +103,7 @@ export default function WeatherPage() {
 
   return (
     <div className="relative z-10 min-h-screen">
-      <ThreeBackground weatherTheme={weatherTheme} />
+      <WeatherVideoBackground weatherTheme={weatherTheme} />
       <WeatherParticles weatherTheme={weatherTheme} />
 
       <div className="relative z-10 min-h-screen flex flex-col">

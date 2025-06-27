@@ -100,11 +100,30 @@ This is a modern weather application built with React and Express.js that provid
 - **Environment**: Production Node.js runtime
 - **Scaling**: Automatic based on traffic
 
+## Recent Changes
+
+- **June 27, 2025**: Replaced Three.js background with video slot system
+  - Removed Three.js dependency for cleaner implementation
+  - Added video background component with 12 weather condition slots
+  - Created fallback gradient colors for each weather type
+  - Added comprehensive video requirements documentation
+  - Maintained location selector and improved particle effects
+
+## Video Background System
+
+The app now uses a video slot system instead of Three.js:
+- **Video Slots**: 12 different weather conditions supported
+- **Fallback**: Matching gradient colors when videos aren't available
+- **Location**: Add videos to `/public/videos/` folder
+- **Formats**: MP4 files with specific naming convention
+- **Auto-detection**: App automatically detects and loads available videos
+
 ## Changelog
 
 ```
 Changelog:
 - June 27, 2025. Initial setup
+- June 27, 2025. Replaced Three.js with video background system
 ```
 
 ## User Preferences
