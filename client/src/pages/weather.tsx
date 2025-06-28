@@ -138,24 +138,35 @@ export default function WeatherPage() {
             </div>
           </div>
           
-          <div className="flex space-x-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleRefresh}
-              className="glassmorphism rounded-full p-3 hover:bg-white/20 transition-all duration-300 text-white border-0"
-              disabled={isLoading}
-            >
-              <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsLocationSelectorOpen(true)}
-              className="glassmorphism rounded-full p-3 hover:bg-white/20 transition-all duration-300 text-white border-0"
-            >
-              <MapPin className="w-5 h-5" />
-            </Button>
+          <div className="flex items-center space-x-6">
+            <div className="text-center">
+              <h2 className="text-white font-bold text-xl tracking-wide">
+                Mysky
+              </h2>
+              <p className="text-white/60 text-xs font-medium">
+                Weather App
+              </p>
+            </div>
+            
+            <div className="flex space-x-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRefresh}
+                className="glassmorphism rounded-full p-3 hover:bg-white/20 transition-all duration-300 text-white border-0"
+                disabled={isLoading}
+              >
+                <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsLocationSelectorOpen(true)}
+                className="glassmorphism rounded-full p-3 hover:bg-white/20 transition-all duration-300 text-white border-0"
+              >
+                <MapPin className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
         </motion.header>
 
@@ -196,6 +207,17 @@ export default function WeatherPage() {
                 new Date(currentWeather.lastUpdated).toLocaleTimeString() : 
                 "Loading..."
               }
+            </p>
+            <p className="text-white/40 text-xs">
+              Created by{" "}
+              <a 
+                href="https://jayantroy.in" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-white/60 hover:text-white transition-colors duration-200 underline decoration-white/30 hover:decoration-white/60"
+              >
+                Jayant Roy
+              </a>
             </p>
           </div>
         </motion.footer>
